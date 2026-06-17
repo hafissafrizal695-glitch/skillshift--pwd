@@ -2353,8 +2353,8 @@ export default function App() {
       )}
 
       {activeTab === 'jobs' && (
-        <main className="animate-fade-in flex-1">
-          <section className="px-6 md:px-10 pt-10 pb-16">
+        <main className="animate-fade-in flex-1 pt-6">
+          <section className="px-6 md:px-10 pt-6 pb-16">
             <div className="max-w-6xl mx-auto">
               <div className="mb-10">
                 <span className="text-[18px] font-black uppercase tracking-[0.28em] text-maroon">
@@ -2553,7 +2553,7 @@ export default function App() {
       )}
 
       {activeTab === 'profile' && (
-        <div className="animate-fade-in px-4 py-6 sm:px-6 md:py-8 md:px-10 max-w-6xl mx-auto w-full max-w-full overflow-hidden">
+        <div className="animate-fade-in px-4 pt-6 sm:px-6 md:pt-8 md:px-10 max-w-6xl mx-auto w-full max-w-full overflow-hidden">
           <div className="mb-6 sm:mb-8 border-b border-gray-200/50 pb-4 sm:pb-6">
             <span className="text-xs sm:text-sm md:text-[18px] font-black uppercase tracking-[0.2em] sm:tracking-[0.28em] text-maroon">
               Akun Saya
@@ -3219,7 +3219,7 @@ export default function App() {
       )}
 
       {activeTab === 'saved' && !isAdminAuth && (
-        <div className="animate-fade-in p-6 md:p-10 max-w-5xl mx-auto w-full pt-0">
+        <div className="animate-fade-in p-6 pt-6 md:p-10 max-w-5xl mx-auto w-full">
           <div className="flex items-end justify-between mb-10 border-b border-gray-200/50 pb-6">
             <div>
               <span className="text-[18px] font-black uppercase tracking-[0.28em] text-maroon">
@@ -3307,7 +3307,7 @@ export default function App() {
       )}
 
       {activeTab === 'history' && (
-        <div className="animate-fade-in p-6 md:p-10 max-w-5xl mx-auto w-full pt-0">
+        <div className="animate-fade-in p-6 pt-6 md:p-10 max-w-5xl mx-auto w-full">
           <div className="border-b border-gray-200/50 pb-6 mb-10">
             <span className="text-[18px] font-black uppercase tracking-[0.28em] text-[#8B1538]">
               Riwayat Karir
@@ -3403,7 +3403,7 @@ export default function App() {
       )}
 
       {activeTab === 'admin' && isAdminAuth && (
-        <div className="animate-fade-in p-6 md:p-10 max-w-6xl mx-auto w-full pt-0">
+        <div className="animate-fade-in p-6 pt-6 md:p-10 max-w-6xl mx-auto w-full">
           <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-gray-200/60 pb-6 mb-10 gap-4">
             <div>
               <span className="text-[18px] font-black uppercase tracking-[0.28em] text-maroon flex items-center gap-2">
@@ -3620,7 +3620,7 @@ export default function App() {
       )}
 
       {activeTab === 'admin-diterima' && isAdminAuth && (
-        <div className="animate-fade-in p-6 md:p-10 max-w-6xl mx-auto w-full pt-0">
+        <div className="animate-fade-in p-6 pt-6 md:p-10 max-w-6xl mx-auto w-full">
           <div className="mb-10 border-b border-gray-200/60 pb-6">
             <span className="text-[18px] font-black uppercase tracking-[0.28em] text-maroon flex items-center gap-2">
               <img src="/images/gembok.png" alt="admin" className="w-5 h-5 align-middle -mt-0.5" />
@@ -3726,7 +3726,7 @@ export default function App() {
       )}
 
       {activeTab === 'admin-akun' && isAdminAuth && (
-        <div className="animate-fade-in p-6 md:p-10 max-w-6xl mx-auto w-full pt-0">
+        <div className="animate-fade-in p-6 pt-6 md:p-10 max-w-6xl mx-auto w-full">
           <div className="mb-8 border-b border-gray-200/50 pb-6">
             <span className="text-[18px] font-black uppercase tracking-[0.28em] text-maroon flex items-center gap-2">
               <img src="/icon/gembok.png" alt="admin" className="w-5 h-5" />
