@@ -2108,8 +2108,8 @@ export default function App() {
       )}
 
       {activeTab === 'home' && (
-        <main className="animate-fade-in flex-1 pt-0">
-          <section className="hero-section relative overflow-hidden pt-3 pb-8 px-6 md:px-10">
+        <main className="animate-fade-in flex-1 pt-6">
+          <section className="hero-section relative overflow-hidden pt-6 pb-12 px-6 md:px-10">
             <HeroDecoration />
             <div className="max-w-7xl mx-auto relative z-10">
               <div className="flex flex-col lg:flex-row items-center justify-between gap-12 lg:gap-8">
