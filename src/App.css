@@ -1167,11 +1167,11 @@ section#jobs-section > div > div,
 
 main {
   overflow: visible !important;
-  padding-top: 88px;
+  padding-top: 120px !important;
 }
 
 .animate-fade-in {
-  padding-top: 88px;
+  padding-top: 120px !important;
 }
 
 .filter-dropdown-container {
