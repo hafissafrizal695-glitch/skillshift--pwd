@@ -1217,6 +1217,7 @@ main {
   width: 100%;
   max-width: 100%;
   overflow-x: hidden;
+  padding-top: 180px !important;
 }
 
 @media (max-width: 768px) {
