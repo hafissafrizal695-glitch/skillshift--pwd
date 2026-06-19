@@ -2108,7 +2108,7 @@ export default function App() {
       )}
 
       {activeTab === 'home' && (
-        <main className="animate-fade-in flex-1 pt-48">
+        <main className="animate-fade-in flex-1 pt-32">
           <section className="hero-section relative overflow-hidden pt-8 pb-12 px-6 md:px-10">
             <HeroDecoration />
             <div className="max-w-7xl mx-auto relative z-10">
@@ -2353,7 +2353,7 @@ export default function App() {
       )}
 
       {activeTab === 'jobs' && (
-        <main className="animate-fade-in flex-1 pt-48">
+        <main className="animate-fade-in flex-1 pt-32">
           <section className="px-6 md:px-10 pt-8 pb-16">
             <div className="max-w-6xl mx-auto">
               <div className="mb-10">
