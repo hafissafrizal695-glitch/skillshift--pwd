@@ -18,5 +18,11 @@
         }
       ]
     }
-  ]
+  ],
+  "experimentalServices": {
+    "web": {
+      "routePrefix": "/",
+      "framework": "vite"
+    }
+  }
 }

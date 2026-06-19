@@ -3726,7 +3726,7 @@ export default function App() {
       )}
 
       {activeTab === 'admin-akun' && isAdminAuth && (
-        <div className="animate-fade-in p-6 pt-8 md:p-10 max-w-6xl mx-auto w-full">
+        <div className="animate-fade-in p-6 pt-32 md:p-10 max-w-6xl mx-auto w-full">
           <div className="mb-8 border-b border-gray-200/50 pb-6">
             <span className="text-[18px] font-black uppercase tracking-[0.28em] text-maroon flex items-center gap-2">
               <img src="/icon/gembok.png" alt="admin" className="w-5 h-5" />
