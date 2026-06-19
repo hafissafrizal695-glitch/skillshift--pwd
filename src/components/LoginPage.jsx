@@ -77,7 +77,7 @@ export default function LoginPage({ onLoginSuccess }) {
 
       setIsLoading(true);
       try {
-        const API_URL = import.meta.env.VITE_API_URL || 'https://skillshift-pwd-production-49ae.up.railway.app/api';
+        const API_URL = import.meta.env.VITE_API_URL || 'https://skillshift-pwd-production-49ae.up.railway.app';
         const res = await fetch(`${API_URL}/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -120,7 +120,7 @@ export default function LoginPage({ onLoginSuccess }) {
 
       setIsLoading(true);
       try {
-        const API_URL = import.meta.env.VITE_API_URL || 'https://skillshift-pwd-production-49ae.up.railway.app/api';
+        const API_URL = import.meta.env.VITE_API_URL || 'https://skillshift-pwd-production-49ae.up.railway.app';
         const res = await fetch(`${API_URL}/register`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
