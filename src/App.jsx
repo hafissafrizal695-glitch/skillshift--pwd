@@ -1753,7 +1753,7 @@ export default function App() {
     filterPosition[0] !== 'Semua';
 
   return (
-    <div className="min-h-screen flex flex-col app-root relative pt-32">
+    <div className="min-h-screen flex flex-col app-root relative" style={{ paddingTop: '180px' }}>
       {activeTab === 'login' && !isLoggedIn && <LoginPage onLoginSuccess={handleLoginSuccess} />}
 
       {!(activeTab === 'login' && !isLoggedIn) && (
