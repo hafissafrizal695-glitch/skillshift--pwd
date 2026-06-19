@@ -3,7 +3,8 @@ import express from 'express';
 import cors from 'cors';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import { mkdirSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, existsSync } from 'node:fs';
+import Database from 'better-sqlite3';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -19,68 +20,84 @@ app.use(cors({
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-const dataDir = join(__dirname, '..', 'data');
+// Database path - support environment variable untuk Railway persistent storage
+const dataDir = process.env.DATA_DIR || join(__dirname, '..', 'data');
+const dbPath = join(dataDir, 'skillshift.db');
+
+// Ensure data directory exists
 if (!existsSync(dataDir)) {
   mkdirSync(dataDir, { recursive: true });
 }
 
-const dbPath = join(dataDir, 'db.json');
-
-const defaultDb = {
-  lowongan: [],
-  mahasiswa: [],
-  riwayat_accepted: [],
-  saved_jobs: [],
-  nextId: {
-    lowongan: 1,
-    mahasiswa: 1,
-    riwayat_accepted: 1,
-    saved_jobs: 1
-  }
-};
-
-let db;
-try {
-  if (existsSync(dbPath)) {
-    db = JSON.parse(readFileSync(dbPath, 'utf-8'));
-  } else {
-    db = { ...defaultDb };
-    saveDb();
-  }
-} catch (e) {
-  db = { ...defaultDb };
-  saveDb();
-}
-
-function saveDb() {
-  writeFileSync(dbPath, JSON.stringify(db, null, 2));
-}
-
 console.log('Database path:', dbPath);
-console.log('Schema database JSON siap!');
+
+// Initialize SQLite database
+const db = new Database(dbPath);
+
+// Create tables if not exist
+db.exec(`
+  CREATE TABLE IF NOT EXISTS mahasiswa (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nama TEXT NOT NULL,
+    email TEXT UNIQUE NOT NULL,
+    password TEXT NOT NULL,
+    created_at TEXT DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS lowongan (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    judul TEXT NOT NULL,
+    perusahaan TEXT NOT NULL,
+    lokasi TEXT,
+    tipe TEXT,
+    kategori TEXT,
+    skill TEXT,
+    jam_kerja TEXT,
+    minimal_umur INTEGER DEFAULT 18,
+    gaji TEXT,
+    deskripsi TEXT,
+    email_kontak TEXT,
+    whatsapp TEXT,
+    foto TEXT,
+    created_at TEXT DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS saved_jobs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id_user INTEGER NOT NULL,
+    id_lowongan INTEGER NOT NULL,
+    tanggal_simpan TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (id_user) REFERENCES mahasiswa(id),
+    FOREIGN KEY (id_lowongan) REFERENCES lowongan(id)
+  );
+
+  CREATE TABLE IF NOT EXISTS riwayat_accepted (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id_user INTEGER NOT NULL,
+    id_lowongan INTEGER NOT NULL,
+    tanggal_diterima TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (id_user) REFERENCES mahasiswa(id),
+    FOREIGN KEY (id_lowongan) REFERENCES lowongan(id)
+  );
+`);
+
+console.log('✅ Database SQLite siap!');
 
 // Seed demo mahasiswa if empty
-if (db.mahasiswa.length === 0) {
-  db.mahasiswa.push({
-    id: db.nextId.mahasiswa++,
-    nama: 'Demo Mahasiswa',
-    email: 'mahasiswa@skillshift.com',
-    password: '123456',
-    created_at: new Date().toISOString()
-  });
-  saveDb();
+const studentCount = db.prepare('SELECT COUNT(*) as count FROM mahasiswa').get();
+if (studentCount.count === 0) {
+  db.prepare(`
+    INSERT INTO mahasiswa (nama, email, password, created_at)
+    VALUES (?, ?, ?, datetime('now'))
+  `).run('Demo Mahasiswa', 'mahasiswa@skillshift.com', '123456');
   console.log('✅ Akun demo mahasiswa berhasil dibuat');
-}
-
-if (db.lowongan.length === 0) {
-  console.log('Lowongan masih kosong. Data dapat ditambahkan manual melalui dashboard admin.');
 }
 
 // ==================== JOBS API ====================
 
 app.get('/api/jobs', (req, res) => {
   try {
-    const jobs = db.lowongan.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    const jobs = db.prepare('SELECT * FROM lowongan ORDER BY created_at DESC').all();
     res.json(jobs.map(job => ({
       id: job.id,
       title: job.judul,
@@ -105,7 +122,7 @@ app.get('/api/jobs', (req, res) => {
 
 app.get('/api/jobs/:id', (req, res) => {
   try {
-    const job = db.lowongan.find(j => j.id === parseInt(req.params.id));
+    const job = db.prepare('SELECT * FROM lowongan WHERE id = ?').get(req.params.id);
     if (!job) {
       return res.status(404).json({ error: 'Lowongan tidak ditemukan' });
     }
@@ -135,28 +152,13 @@ app.post('/api/jobs', (req, res) => {
   try {
     const { title, company, location, type, category, skills, hours, minAge, salary, description, contactEmail, contactPhone, image } = req.body;
     const skillsStr = Array.isArray(skills) ? skills.join(',') : skills;
-    const createdAt = new Date().toISOString().split('T')[0];
 
-    const newJob = {
-      id: db.nextId.lowongan++,
-      judul: title,
-      perusahaan: company,
-      lokasi: location,
-      tipe: type,
-      kategori: category,
-      skill: skillsStr || '',
-      jam_kerja: hours || '',
-      minimal_umur: minAge || 18,
-      gaji: salary || '',
-      deskripsi: description || '',
-      email_kontak: contactEmail || '',
-      whatsapp: contactPhone || '',
-      foto: image || '',
-      created_at: createdAt
-    };
+    const result = db.prepare(`
+      INSERT INTO lowongan (judul, perusahaan, lokasi, tipe, kategori, skill, jam_kerja, minimal_umur, gaji, deskripsi, email_kontak, whatsapp, foto, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+    `).run(title, company, location, type, category, skillsStr, hours, minAge || 18, salary, description, contactEmail, contactPhone, image);
 
-    db.lowongan.push(newJob);
-    saveDb();
+    const newJob = db.prepare('SELECT * FROM lowongan WHERE id = ?').get(result.lastInsertRowid);
 
     res.status(201).json({
       id: newJob.id,
@@ -183,33 +185,22 @@ app.post('/api/jobs', (req, res) => {
 app.put('/api/jobs/:id', (req, res) => {
   try {
     const { title, company, location, type, category, skills, hours, minAge, salary, description, contactEmail, contactPhone, image } = req.body;
-    const idx = db.lowongan.findIndex(j => j.id === parseInt(req.params.id));
+    const skillsStr = Array.isArray(skills) ? skills.join(',') : skills;
 
-    if (idx === -1) {
+    const existing = db.prepare('SELECT * FROM lowongan WHERE id = ?').get(req.params.id);
+    if (!existing) {
       return res.status(404).json({ error: 'Lowongan tidak ditemukan' });
     }
 
-    const skillsStr = Array.isArray(skills) ? skills.join(',') : skills;
+    db.prepare(`
+      UPDATE lowongan SET
+        judul = ?, perusahaan = ?, lokasi = ?, tipe = ?, kategori = ?,
+        skill = ?, jam_kerja = ?, minimal_umur = ?, gaji = ?,
+        deskripsi = ?, email_kontak = ?, whatsapp = ?, foto = ?
+      WHERE id = ?
+    `).run(title, company, location, type, category, skillsStr, hours, minAge || 18, salary, description, contactEmail, contactPhone, image, req.params.id);
 
-    db.lowongan[idx] = {
-      ...db.lowongan[idx],
-      judul: title,
-      perusahaan: company,
-      lokasi: location,
-      tipe: type,
-      kategori: category,
-      skill: skillsStr || '',
-      jam_kerja: hours || '',
-      minimal_umur: minAge || 18,
-      gaji: salary || '',
-      deskripsi: description || '',
-      email_kontak: contactEmail || '',
-      whatsapp: contactPhone || '',
-      foto: image || ''
-    };
-    saveDb();
-
-    const job = db.lowongan[idx];
+    const job = db.prepare('SELECT * FROM lowongan WHERE id = ?').get(req.params.id);
     res.json({
       id: job.id,
       title: job.judul,
@@ -235,16 +226,15 @@ app.put('/api/jobs/:id', (req, res) => {
 app.delete('/api/jobs/:id', (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    const idx = db.lowongan.findIndex(j => j.id === id);
+    const existing = db.prepare('SELECT * FROM lowongan WHERE id = ?').get(id);
 
-    if (idx === -1) {
+    if (!existing) {
       return res.status(404).json({ error: 'Lowongan tidak ditemukan' });
     }
 
-    db.lowongan.splice(idx, 1);
-    db.saved_jobs = db.saved_jobs.filter(s => s.id_lowongan !== id);
-    db.riwayat_accepted = db.riwayat_accepted.filter(r => r.id_lowongan !== id);
-    saveDb();
+    db.prepare('DELETE FROM saved_jobs WHERE id_lowongan = ?').run(id);
+    db.prepare('DELETE FROM riwayat_accepted WHERE id_lowongan = ?').run(id);
+    db.prepare('DELETE FROM lowongan WHERE id = ?').run(id);
 
     res.json({ message: 'Lowongan berhasil dihapus' });
   } catch (error) {
@@ -266,21 +256,17 @@ app.post('/api/register', (req, res) => {
       return res.status(400).json({ error: 'Password minimal 6 karakter' });
     }
 
-    const existing = db.mahasiswa.find(m => m.email === email);
+    const existing = db.prepare('SELECT * FROM mahasiswa WHERE email = ?').get(email);
     if (existing) {
       return res.status(409).json({ error: 'Email sudah terdaftar' });
     }
 
-    const newUser = {
-      id: db.nextId.mahasiswa++,
-      nama,
-      email,
-      password,
-      created_at: new Date().toISOString()
-    };
+    const result = db.prepare(`
+      INSERT INTO mahasiswa (nama, email, password, created_at)
+      VALUES (?, ?, ?, datetime('now'))
+    `).run(nama, email, password);
 
-    db.mahasiswa.push(newUser);
-    saveDb();
+    const newUser = db.prepare('SELECT * FROM mahasiswa WHERE id = ?').get(result.lastInsertRowid);
 
     res.status(201).json({
       message: 'Akun berhasil dibuat',
@@ -315,7 +301,7 @@ app.post('/api/login', (req, res) => {
       return res.status(401).json({ error: 'Email atau password admin salah' });
     }
 
-    const mahasiswa = db.mahasiswa.find(m => m.email === email && m.password === password);
+    const mahasiswa = db.prepare('SELECT * FROM mahasiswa WHERE email = ? AND password = ?').get(email, password);
     if (!mahasiswa) {
       return res.status(401).json({ error: 'Email atau password mahasiswa salah' });
     }
@@ -334,14 +320,13 @@ app.post('/api/login', (req, res) => {
 app.get('/api/saved/:id_user', (req, res) => {
   try {
     const id_user = parseInt(req.params.id_user);
-    const saved = db.saved_jobs
-      .filter(s => s.id_user === id_user)
-      .map(s => {
-        const job = db.lowongan.find(j => j.id === s.id_lowongan);
-        return job ? { ...job, tanggal_simpan: s.tanggal_simpan } : null;
-      })
-      .filter(Boolean)
-      .sort((a, b) => new Date(b.tanggal_simpan) - new Date(a.tanggal_simpan));
+    const saved = db.prepare(`
+      SELECT l.*, sj.tanggal_simpan
+      FROM saved_jobs sj
+      JOIN lowongan l ON sj.id_lowongan = l.id
+      WHERE sj.id_user = ?
+      ORDER BY sj.tanggal_simpan DESC
+    `).all(id_user);
     res.json(saved);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -355,15 +340,12 @@ app.post('/api/saved', (req, res) => {
       return res.status(400).json({ error: 'id_user dan id_lowongan wajib diisi' });
     }
 
-    const exists = db.saved_jobs.find(s => s.id_user === parseInt(id_user) && s.id_lowongan === parseInt(id_lowongan));
+    const exists = db.prepare('SELECT * FROM saved_jobs WHERE id_user = ? AND id_lowongan = ?').get(id_user, id_lowongan);
     if (!exists) {
-      db.saved_jobs.push({
-        id: db.nextId.saved_jobs++,
-        id_user: parseInt(id_user),
-        id_lowongan: parseInt(id_lowongan),
-        tanggal_simpan: new Date().toISOString()
-      });
-      saveDb();
+      db.prepare(`
+        INSERT INTO saved_jobs (id_user, id_lowongan, tanggal_simpan)
+        VALUES (?, ?, datetime('now'))
+      `).run(id_user, id_lowongan);
     }
     res.json({ message: 'Lowongan berhasil disimpan' });
   } catch (error) {
@@ -375,8 +357,7 @@ app.delete('/api/saved/:id_user/:id_lowongan', (req, res) => {
   try {
     const id_user = parseInt(req.params.id_user);
     const id_lowongan = parseInt(req.params.id_lowongan);
-    db.saved_jobs = db.saved_jobs.filter(s => !(s.id_user === id_user && s.id_lowongan === id_lowongan));
-    saveDb();
+    db.prepare('DELETE FROM saved_jobs WHERE id_user = ? AND id_lowongan = ?').run(id_user, id_lowongan);
     res.json({ message: 'Lowongan berhasil dihapus dari tersimpan' });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -388,17 +369,16 @@ app.delete('/api/saved/:id_user/:id_lowongan', (req, res) => {
 app.get('/api/accepted/:id_user', (req, res) => {
   try {
     const id_user = parseInt(req.params.id_user);
-    const accepted = db.riwayat_accepted
-      .filter(r => r.id_user === id_user)
-      .map(r => {
-        const job = db.lowongan.find(j => j.id === r.id_lowongan);
-        return job ? { ...job, tanggal_diterima: r.tanggal_diterima } : null;
-      })
-      .filter(Boolean)
-      .sort((a, b) => new Date(b.tanggal_diterima) - new Date(a.tanggal_diterima));
+    const accepted = db.prepare(`
+      SELECT l.*, ra.tanggal_diterima
+      FROM riwayat_accepted ra
+      JOIN lowongan l ON ra.id_lowongan = l.id
+      WHERE ra.id_user = ?
+      ORDER BY ra.tanggal_diterima DESC
+    `).all(id_user);
     res.json(accepted);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+ res.status(500).json({ error: error.message });
   }
 });
 
@@ -409,15 +389,12 @@ app.post('/api/accepted', (req, res) => {
       return res.status(400).json({ error: 'id_user dan id_lowongan wajib diisi' });
     }
 
-    const exists = db.riwayat_accepted.find(r => r.id_user === parseInt(id_user) && r.id_lowongan === parseInt(id_lowongan));
+    const exists = db.prepare('SELECT * FROM riwayat_accepted WHERE id_user = ? AND id_lowongan = ?').get(id_user, id_lowongan);
     if (!exists) {
-      db.riwayat_accepted.push({
-        id: db.nextId.riwayat_accepted++,
-        id_user: parseInt(id_user),
-        id_lowongan: parseInt(id_lowongan),
-        tanggal_diterima: new Date().toISOString()
-      });
-      saveDb();
+      db.prepare(`
+        INSERT INTO riwayat_accepted (id_user, id_lowongan, tanggal_diterima)
+        VALUES (?, ?, datetime('now'))
+      `).run(id_user, id_lowongan);
     }
     res.json({ message: 'Lowongan berhasil ditandai diterima' });
   } catch (error) {
@@ -429,8 +406,7 @@ app.delete('/api/accepted/:id_user/:id_lowongan', (req, res) => {
   try {
     const id_user = parseInt(req.params.id_user);
     const id_lowongan = parseInt(req.params.id_lowongan);
-    db.riwayat_accepted = db.riwayat_accepted.filter(r => !(r.id_user === id_user && r.id_lowongan === id_lowongan));
-    saveDb();
+    db.prepare('DELETE FROM riwayat_accepted WHERE id_user = ? AND id_lowongan = ?').run(id_user, id_lowongan);
     res.json({ message: 'Lowongan berhasil dihapus dari diterima' });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -441,24 +417,15 @@ app.delete('/api/accepted/:id_user/:id_lowongan', (req, res) => {
 
 app.get('/api/admin/accepted', (req, res) => {
   try {
-    const accepted = db.riwayat_accepted
-      .map(r => {
-        const mahasiswa = db.mahasiswa.find(m => m.id === r.id_user);
-        const lowongan = db.lowongan.find(j => j.id === r.id_lowongan);
-        if (!mahasiswa || !lowongan) return null;
-        return {
-          userName: mahasiswa.nama,
-          userEmail: mahasiswa.email,
-          jobTitle: lowongan.judul,
-          company: lowongan.perusahaan,
-          location: lowongan.lokasi,
-          salary: lowongan.gaji,
-          acceptedDate: r.tanggal_diterima,
-          id: r.id
-        };
-      })
-      .filter(Boolean)
-      .sort((a, b) => new Date(b.acceptedDate) - new Date(a.acceptedDate));
+    const accepted = db.prepare(`
+      SELECT m.nama as userName, m.email as userEmail, l.judul as jobTitle,
+             l.perusahaan as company, l.lokasi as location, l.gaji as salary,
+             ra.tanggal_diterima as acceptedDate, ra.id
+      FROM riwayat_accepted ra
+      JOIN mahasiswa m ON ra.id_user = m.id
+      JOIN lowongan l ON ra.id_lowongan = l.id
+      ORDER BY ra.tanggal_diterima DESC
+    `).all();
     res.json(accepted);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -475,6 +442,6 @@ app.get('/api/health', (req, res) => {
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`\nSkillShift API Server running on http://0.0.0.0:${PORT}`);
-  console.log(`Database: db.json`);
-  console.log('Tabel: lowongan, mahasiswa, riwayat_accepted, saved_jobs');
+  console.log(`Database: skillshift.db`);
+  console.log('Tables: mahasiswa, lowongan, saved_jobs, riwayat_accepted');
 });
